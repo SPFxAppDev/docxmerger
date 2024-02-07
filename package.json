@@ -1,0 +1,37 @@
+{
+  "name": "@spfxappdev/docxmerger",
+  "version": "1.0.0-beta1",
+  "description": "",
+  "main": "lib/index.js",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "prepublish": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SPFxAppDev/docxmerger.git"
+  },
+  "keywords": [
+    "typescript",
+    "docx",
+    "Word",
+    "Merge",
+    "Merge Word",
+    "Merge DOCX"
+  ],
+  "author": "Seryoga",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SPFxAppDev/docxmerger/issues"
+  },
+  "homepage": "https://github.com/SPFxAppDev/docxmerger#readme",
+  "devDependencies": {
+    "typescript": "^4.5.4"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.8.10",
+    "jszip": "^3.10.1"
+  }
+}
