@@ -12,9 +12,13 @@ npm install @spfxappdev/docxmerger
 
 The example shows how an input field of type "File" is handled after the selection has been changed. The input field allows multiple selections:
 
+### HTML
+
 ```HTML
 <input type="file" id="wordFileInput" multiple accept=".docx" />
 ```
+
+### TypeScript 
 
 ```TypeScript
 import { DocxMerger } from '@spfxappdev/docxmerger';
@@ -58,11 +62,10 @@ fileInput.addEventListener('change', async (event) => {
 
   const docx = new DocxMerger();
   await docx.merge(filesToMerge);
-  const   = await docx.save();
+  const mergedFile  = await docx.save();
   
   //DO something with the merged file
 });
-//
 ```
 
 ## Demo
