@@ -1,6 +1,6 @@
 {
   "name": "@spfxappdev/docxmerger",
-  "version": "1.0.0-beta1",
+  "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",
   "files": [
@@ -16,10 +16,11 @@
   "keywords": [
     "typescript",
     "docx",
-    "Word",
-    "Merge",
-    "Merge Word",
-    "Merge DOCX"
+    "word",
+    "merge",
+    "merge word",
+    "merge docx",
+    "office"
   ],
   "author": "Seryoga",
   "license": "ISC",

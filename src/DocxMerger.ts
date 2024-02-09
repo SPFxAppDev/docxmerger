@@ -1,21 +1,62 @@
 import JSZip, { JSZipObject } from 'jszip';
 
 export type DocxMergerOptions = {
+  /**
+   * Determines whether a page break should be inserted after merging the file(s)
+   * @default true
+   * @type {boolean}
+   * @since 1.0.0
+   */
   pageBreak?: boolean;
+
+  /**
+   * Optional parameters that can be passed to JSZip and the loadAsync method when the merge method is called
+   * @default undefined
+   * @type {JSZip.JSZipLoadOptions}
+   * @since 1.0.0
+   */
   jsZipLoadOptions?: JSZip.JSZipLoadOptions;
+
+  /**
+   * Optional parameters that can be passed to JSZip and the generateAsync method when the save method is called
+   * @default { type: 'arraybuffer', compression: 'DEFLATE', compressionOptions: {level: 4} }
+   * @type {JSZip.JSZipGeneratorOptions}
+   * @since 1.0.0
+   */
+  jsZipGenerateOptions?: JSZip.JSZipGeneratorOptions;
 };
 
-export type JSZipFileInput = string | ArrayBuffer | Uint8Array | Blob;
+/**
+ * A type of file that can be used for merging
+ * @since 1.0.0
+ */
+export type JSZipFileInput = ArrayBuffer | Uint8Array | Blob;
 
+/**
+ *
+ * The interface that the DocxMerger implements
+ * @export
+ * @interface IDocxMerger
+ */
 export interface IDocxMerger {
+  /**
+   * Merges the passed files into a single file
+   * @param {JSZipFileInput[]} files the files to merge
+   * @param {DocxMergerOptions} [options] Optional options for the merging and saving process
+   */
   merge(files: JSZipFileInput[], options?: DocxMergerOptions): Promise<void>;
-  save(type: any): Promise<any>;
+
+  /**
+   * Creates/saves the merged file and returns it
+   * @returns a Promise that resolves to any type of value.
+   */
+  save(): Promise<any>;
 }
 
 export class DocxMerger implements IDocxMerger {
   private body: any = [];
-  private header = [];
-  private footer = [];
+  // private header = [];
+  // private footer = [];
   //   private pageBreak = true;
   // private Basestyle = 'source';
   private style: any = [];
@@ -34,12 +75,25 @@ export class DocxMerger implements IDocxMerger {
     this.builder = this.body;
   }
 
+  /**
+   * Merges the passed files into a single file
+   * @param {JSZipFileInput[]} files the files to merge
+   * @param {DocxMergerOptions} [options] Optional options for the merging and saving process
+   * @memberof DocxMerger
+   */
   public async merge(files: JSZipFileInput[], options?: DocxMergerOptions): Promise<void> {
     this.mediaFilesCount = 1;
     this.contentTypeAndValueMapper = {};
 
     const defaultOptions: DocxMergerOptions = {
       pageBreak: true,
+      jsZipGenerateOptions: {
+        type: 'arraybuffer',
+        compression: 'DEFLATE',
+        compressionOptions: {
+          level: 4,
+        },
+      },
     };
 
     this.options = { ...defaultOptions, ...options };
@@ -48,7 +102,7 @@ export class DocxMerger implements IDocxMerger {
     // this.Basestyle = options.style || 'source';
 
     for (const file of files) {
-      const zipFile: JSZip = await new JSZip().loadAsync(file);
+      const zipFile: JSZip = await new JSZip().loadAsync(file, options.jsZipLoadOptions);
       this.files.push(zipFile);
     }
 
@@ -57,7 +111,11 @@ export class DocxMerger implements IDocxMerger {
     }
   }
 
-  public async save(type: any): Promise<any> {
+  /**
+   * Creates/saves the merged file and returns it
+   * @returns a Promise that resolves to any type of value.
+   */
+  public async save(): Promise<any> {
     if (!this.files || (this.files && this.files.length < 1)) {
       return;
     }
@@ -79,27 +137,13 @@ export class DocxMerger implements IDocxMerger {
 
     zip.file('word/document.xml', xmlString);
 
-    //TODO: Handle in options....
-    return await zip.generateAsync({
-      type: type,
-      compression: 'DEFLATE',
-      compressionOptions: {
-        level: 4,
-      },
-    });
+    this.options.jsZipGenerateOptions.type =
+      this.options.jsZipGenerateOptions.type || 'arraybuffer';
+    return await zip.generateAsync(this.options.jsZipGenerateOptions);
   }
 
   private async mergeBody(): Promise<void> {
     this.builder = this.body;
-
-    // RelContentType.mergeContentTypes(this.files, this.contentTypes);
-    // Media.prepareMediaFiles(this.files, this.media);
-    // RelContentType.mergeRelations(this.files, this.rel);
-
-    // bulletsNumbering.prepareNumbering(this.files);
-    // bulletsNumbering.mergeNumbering(this.files, this.numbering);
-    // Style.prepareStyles(this.files, this.style);
-    // Style.mergeStyles(this.files, this.style);
 
     const numberSerializer = new XMLSerializer();
     const styleSerializer = new XMLSerializer();
@@ -126,11 +170,6 @@ export class DocxMerger implements IDocxMerger {
         this.insertPageBreak();
       }
     }
-
-    // this.files.forEach(async (zip: JSZip, index: number) => {
-    //   //TODO: Prüfen ob man ein Promise array machen kann und dann PromiseAll awaiten. Wahrscheinlich nicht, weil abhängigkeiten?
-
-    // });
   }
 
   private insertPageBreak(): void {
