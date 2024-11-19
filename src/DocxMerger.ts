@@ -102,7 +102,7 @@ export class DocxMerger implements IDocxMerger {
     // this.Basestyle = options.style || 'source';
 
     for (const file of files) {
-      const zipFile: JSZip = await new JSZip().loadAsync(file, options.jsZipLoadOptions);
+      const zipFile: JSZip = await new JSZip().loadAsync(file, this.options.jsZipLoadOptions);
       this.files.push(zipFile);
     }
 
@@ -137,6 +137,7 @@ export class DocxMerger implements IDocxMerger {
 
     zip.file('word/document.xml', xmlString);
 
+    this.options.jsZipGenerateOptions = this.options.jsZipGenerateOptions||{};
     this.options.jsZipGenerateOptions.type =
       this.options.jsZipGenerateOptions.type || 'arraybuffer';
     return await zip.generateAsync(this.options.jsZipGenerateOptions);
