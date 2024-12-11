@@ -61,6 +61,8 @@ export class DocxMerger implements IDocxMerger {
   // private Basestyle = 'source';
   private style: any = [];
   private numbering: any = [];
+  private totalAbstractNumberingElements: number = 0;
+  private totalNumberingElements: number = 0;
   private files: JSZip[] = [];
   private contentTypes: any = [];
   private media: any = {};
@@ -137,7 +139,7 @@ export class DocxMerger implements IDocxMerger {
 
     zip.file('word/document.xml', xmlString);
 
-    this.options.jsZipGenerateOptions = this.options.jsZipGenerateOptions||{};
+    this.options.jsZipGenerateOptions = this.options.jsZipGenerateOptions || {};
     this.options.jsZipGenerateOptions.type =
       this.options.jsZipGenerateOptions.type || 'arraybuffer';
     return await zip.generateAsync(this.options.jsZipGenerateOptions);
@@ -365,12 +367,22 @@ export class DocxMerger implements IDocxMerger {
     }
     let xmlString = await xmlBin.async('string');
     const xml = new DOMParser().parseFromString(xmlString, 'text/xml');
+
+    const xmlDocBin = zipFile.file('word/document.xml');
+
+    if (!xmlDocBin) {
+      return;
+    }
+
+    let xmlDocumentString = await xmlDocBin.async('string');
+    const xmlDocument = new DOMParser().parseFromString(xmlDocumentString, 'text/xml');
+
     const nodes: any = xml.getElementsByTagName('w:abstractNum');
 
     for (const node in nodes) {
       if (/^\d+$/.test(node) && nodes[node].getAttribute) {
         const absID = nodes[node].getAttribute('w:abstractNumId');
-        nodes[node].setAttribute('w:abstractNumId', absID + mergedFileIndex);
+        nodes[node].setAttribute('w:abstractNumId', this.totalAbstractNumberingElements);
         const pStyles = nodes[node].getElementsByTagName('w:pStyle');
         for (const pStyle in pStyles) {
           if (pStyles[pStyle].getAttribute) {
@@ -393,6 +405,8 @@ export class DocxMerger implements IDocxMerger {
             styleLinks[styleLink].setAttribute('w:val', styleLinkId + '_' + mergedFileIndex);
           }
         }
+
+        this.totalAbstractNumberingElements += 1;
       }
     }
 
@@ -401,14 +415,53 @@ export class DocxMerger implements IDocxMerger {
     for (const node in numNodes) {
       if (/^\d+$/.test(node) && numNodes[node].getAttribute) {
         const ID = numNodes[node].getAttribute('w:numId');
-        numNodes[node].setAttribute('w:numId', ID + mergedFileIndex);
+        const durableId = numNodes[node].getAttribute('w16cid:durableId');
+        numNodes[node].setAttribute('w:numId', (this.totalNumberingElements + 1).toString());
+        numNodes[node].setAttribute('w16cid:durableId', durableId + mergedFileIndex);
         const absrefID = numNodes[node].getElementsByTagName('w:abstractNumId');
         for (const i in absrefID) {
           if (absrefID[i].getAttribute) {
             const iId = absrefID[i].getAttribute('w:val');
-            absrefID[i].setAttribute('w:val', iId + mergedFileIndex);
+            absrefID[i].setAttribute('w:val', this.totalNumberingElements);
           }
         }
+
+        const listElementsInDoc = xmlDocument.getElementsByTagName(`w:numId`);
+
+        for (const list in listElementsInDoc) {
+          if (!listElementsInDoc[list].getAttribute) {
+            continue;
+          }
+
+          if (listElementsInDoc[list].getAttribute('w:val') !== ID) {
+            continue;
+          }
+
+          //   const styleElements =
+          //     listElementsInDoc[list].parentNode.parentNode.getElementsByTagName(
+          //       "w:pStyle"
+          //     );
+
+          //   for (const style in styleElements) {
+          //     if (!styleElements[style].getAttribute) {
+          //       continue;
+          //     }
+
+          //     const currentVal = styleElements[style].getAttribute("w:val");
+
+          //     styleElements[style].setAttribute(
+          //       "w:val",
+          //       currentVal.split("_")[0] + `_${this.totalNumberingElements + 1}`
+          //     );
+          //   }
+
+          listElementsInDoc[list].setAttribute(
+            'w:val',
+            (this.totalNumberingElements + 1).toString()
+          );
+        }
+
+        this.totalNumberingElements += 1;
       }
     }
 
@@ -419,6 +472,12 @@ export class DocxMerger implements IDocxMerger {
     );
 
     zipFile.file('word/numbering.xml', xmlString);
+
+    xmlDocumentString = xmlDocumentString.replace(
+      xmlDocumentString.slice(xmlDocumentString.indexOf('<w:document ')),
+      serializer.serializeToString(xmlDocument.documentElement)
+    );
+    zipFile.file('word/document.xml', xmlDocumentString);
   }
 
   private async mergeNumbering(zipFile: JSZip): Promise<void> {
@@ -440,10 +499,39 @@ export class DocxMerger implements IDocxMerger {
       return;
     }
     let xmlString = await xmlBin.async('string');
-    const startIndex = xmlString.indexOf('<w:abstractNum ');
+    let startIndex = xmlString.indexOf('<w:abstractNum ');
     const endIndex = xmlString.indexOf('</w:numbering>');
 
     xmlString = xmlString.replace(xmlString.slice(startIndex, endIndex), this.numbering.join(''));
+
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+
+    let allNumElements = xmlDoc.getElementsByTagName('w:num');
+
+    let allNumStrings: string = '';
+
+    while (allNumElements.length > 0) {
+      const num = 0;
+      if (!allNumElements[num].getAttribute) {
+        continue;
+      }
+
+      allNumStrings += allNumElements[num].outerHTML;
+
+      allNumElements[num].remove();
+
+      allNumElements = xmlDoc.getElementsByTagName('w:num');
+    }
+
+    xmlDoc.documentElement.innerHTML += allNumStrings;
+
+    const serializer = new XMLSerializer();
+    startIndex = xmlString.indexOf('<w:numbering ');
+    xmlString = xmlString.replace(
+      xmlString.slice(startIndex),
+      serializer.serializeToString(xmlDoc.documentElement)
+    );
 
     zipFile.file('word/numbering.xml', xmlString);
   }
